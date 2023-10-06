@@ -1,0 +1,203 @@
+EXPORT the_ball()
+BEGIN
+
+// constants
+LOCAL BACKGROUND_COLOR = RGB(0,0,0);
+LOCAL TEXT_COLOR = RGB(255,255,255);
+LOCAL SCREEN_W := 320;
+LOCAL SCREEN_H := 240;
+LOCAL MAX_V_X := 1;
+LOCAL MAX_V_Y := 1;
+LOCAL MIN_V_X := 0.02;
+LOCAL MIN_V_Y := 0.02;
+
+// initial values
+LOCAL P_X := 200;
+LOCAL P_Y := 100;
+LOCAL V_X := 1;
+LOCAL V_Y := 1;
+LOCAL HAPPYNESS := 1;
+LOCAL HEALTH := 1;
+LOCAL HUNGER := 1;
+
+// globals
+LOCAL CURRENT_ACTION = 0; // 0-None, 1-Feed, 3-Heal, 4to7-Play 
+LOCAL MILLIS := 0;
+LOCAL LAST_HAPPYNESS_UPDATE_MILLIS := 0;
+LOCAL LAST_HEALTH_UPDATE_MILLIS := 0;
+LOCAL LAST_HUNGER_UPDATE_MILLIS := 0;
+
+// settings
+LOCAL HAPPYNESS_SLOWING_GAIN := 5;
+LOCAL DEBUG := 1;
+LOCAL MIN_WAIT_TIME_MS = 16;
+LOCAL WAIT_TIME_MS := MIN_WAIT_TIME_MS;
+LOCAL HAPPYNESS_UPDATE_INTERVAL_MS := 10e3;
+LOCAL HEALTH_UPDATE_INTERVAL_MS := 10e3;
+LOCAL HUNGER_UPDATE_INTERVAL_MS := 10e3;
+
+WHILE 1 == 1 DO
+    WAIT(WAIT_TIME_MS / 1000);
+    MILLIS := MILLIS + WAIT_TIME_MS;
+
+    // Pet Variables
+    LOCAL PET_RADIUS := 30;
+    LOCAL P_OR := 3; // Pet orientation value
+    LOCAL PET_BORDER_COLOR = RGB(0,255,0);
+    LOCAL PET_BODY_COLOR = RGB(0,0,0);
+    LOCAL E_OFF_X := PET_RADIUS/3;
+    LOCAL E_OFF_Y := PET_RADIUS/6;
+    LOCAL E_DY := PET_RADIUS/2.5;
+    LOCAL E_COLOR := RGB(255,255,255);
+    LOCAL N_OFF_Y := PET_RADIUS/6;
+    LOCAL N_DY := PET_RADIUS/10;
+    LOCAL N_COLOR := RGB(255,255,255);
+
+    // Buttons Variables
+    LOCAL BTNS_NUMBER := 3;
+    LOCAL BTNS_SPACE := 10;
+    LOCAL BTN_WIDTH := (SCREEN_W-(BTNS_NUMBER+1)*10)/BTNS_NUMBER;
+    LOCAL Y1 := SCREEN_H-20;
+    LOCAL Y2 := SCREEN_H-5;
+    LOCAL B1X1 := BTNS_SPACE;
+    LOCAL B1X2 := BTNS_SPACE + BTN_WIDTH;
+    LOCAL B2X1 := 2*BTNS_SPACE + BTN_WIDTH;
+    LOCAL B2X2 := 2*BTNS_SPACE + 2*BTN_WIDTH;
+    LOCAL B3X1 := 3*BTNS_SPACE + 2*BTN_WIDTH;
+    LOCAL B3X2 := 3*BTNS_SPACE + 3*BTN_WIDTH;
+    LOCAL B1_FILL_COLOR := RGB(0,0,0);
+    LOCAL B2_FILL_COLOR := RGB(0,0,0);
+    LOCAL B3_FILL_COLOR := RGB(0,0,0);
+
+    // Handle pressed key
+    LOCAL PRESSED_KEY := GETKEY();
+    if PRESSED_KEY == 50 THEN HAPPYNESS := HAPPYNESS + 0.1; END;
+    if PRESSED_KEY == 45 THEN HAPPYNESS := HAPPYNESS - 0.1; END;
+    IF HAPPYNESS > 1 THEN HAPPYNESS := 1 END;
+    IF HAPPYNESS < 0 THEN HAPPYNESS := 0 END;
+
+    // Detect touch
+    LOCAL MS := MOUSE();
+    LOCAL M1 := MS(1);
+    LOCAL MX = 0;
+    LOCAL MY = 0;
+    IF SIZE(M1) > 2 THEN // Handle detected touch
+        MX := M1(1);
+        MY := M1(2);
+        if MX <= SCREEN_W AND MX > 0 AND MY <= SCREEN_H AND MY >= 0 THEN // detected touch is valid
+
+            // Handle action buttons
+            CASE 
+                IF (MX > B1X1 AND MX < B1X2) AND (MY > Y1) THEN // btn1 clicked
+                    CURRENT_ACTION := 1;
+                    B1_FILL_COLOR := RGB(0,255,0);
+                END;
+                IF (MX > B2X1 AND MX < B2X2) AND (MY > Y1) THEN // btn3 clicked
+                    CURRENT_ACTION := 2;
+                    B2_FILL_COLOR := RGB(0,255,0);
+                END;
+                IF (MX > B3X1 AND MX < B3X2) AND (MY > Y1) THEN // btn3 clicked
+                    CURRENT_ACTION := 3;
+                    B3_FILL_COLOR := RGB(0,255,0);
+                END;
+            END;
+
+            // handle actions
+            CASE
+                IF CURRENT_ACTION == 1 THEN
+                    IF (MX < P_X + PET_RADIUS AND MX > P_X - PET_RADIUS) AND
+                        (MY < P_Y + PET_RADIUS AND MY > P_Y - PET_RADIUS) THEN // Pet tapped
+                            HAPPYNESS := HAPPYNESS + 0.1; // Pet is happier
+                            PET_BODY_COLOR := RGB(0,0,255); // Pet flashes
+                    END;
+                    // Pet tries to reach the taps
+                    IF MX - P_X > 0 THEN V_X := ABS(V_X); ELSE V_X := ABS(V_X)*-1; END; // Change pet velocity X
+                    IF MY - P_Y > 0 THEN V_Y := ABS(V_Y); ELSE V_Y := ABS(V_Y)*-1; END; // Change pet velocity Y
+                    HAPPYNESS := HAPPYNESS + 0.05; // pet is a bit happier
+                END;
+            END;
+            
+        END;
+    END;
+
+    // UPDATE DATA
+
+    // Check if data are valid
+    IF HAPPYNESS > 1 THEN HAPPYNESS := 1 END;
+    IF HAPPYNESS < 0 THEN HAPPYNESS := 0 END;
+    IF HEALTH > 1 THEN HEALTH := 1 END;
+    IF HEALTH < 0 THEN HEALTH := 0 END;
+    IF HUNGER > 1 THEN HUNGER := 1 END;
+    IF HUNGER < 0 THEN HUNGER := 0 END;
+
+    IF MILLIS - LAST_HAPPYNESS_UPDATE_MILLIS > HAPPYNESS_UPDATE_INTERVAL_MS THEN
+        LAST_HAPPYNESS_UPDATE_MILLIS := MILLIS;
+        HAPPYNESS := HAPPYNESS - 0.1;
+    END;
+    IF MILLIS - LAST_HEALTH_UPDATE_MILLIS > HEALTH_UPDATE_INTERVAL_MS THEN
+        LAST_HEALTH_UPDATE_MILLIS := MILLIS;
+        HEALTH := HEALTH - 0.1;
+    END;
+    IF MILLIS - LAST_HUNGER_UPDATE_MILLIS > HUNGER_UPDATE_INTERVAL_MS THEN
+        LAST_HUNGER_UPDATE_MILLIS := MILLIS;
+        HUNGER := HUNGER - 0.1;
+    END;
+
+    // Update eyes by HAPPYNESS
+    E_DY := E_DY - E_DY*(1-HAPPYNESS) + 1;
+
+    // Update position
+    P_X := P_X + V_X;
+    P_Y := P_Y + V_Y;
+
+    // Handle collisions
+    IF (P_X + PET_RADIUS) >= SCREEN_W-1 OR (P_X - PET_RADIUS) <= 1 THEN V_X := V_X*-1; END;
+    IF (P_Y + PET_RADIUS) >= SCREEN_H-1 OR (P_Y - PET_RADIUS) <= 1 THEN V_Y := V_Y*-1; END;
+
+    // Update velocities by HAPPYNESS
+    V_X := SIGN(V_X) * MAX_V_X * HAPPYNESS + SIGN(V_X)/100;
+    V_Y := SIGN(V_Y) * MAX_V_Y * HAPPYNESS + SIGN(V_Y)/100;
+
+    // RENDER
+    // Clear Screen
+    RECT(BACKGROUND_COLOR);
+
+    // render buttons
+    RECT_P(B1X1, Y1, B1X2, Y2, RGB(255,255,255), B1_FILL_COLOR);
+    TEXTOUT_P("PLAY", (B1X1+B1X2)/2-10, Y1+4, 1, TEXT_COLOR);
+    
+    RECT_P(B2X1, Y1, B2X2, Y2, RGB(255,255,255), B2_FILL_COLOR);
+    TEXTOUT_P("FEED", (B2X1+B2X2)/2-10, Y1+4, 1, TEXT_COLOR);
+
+    RECT_P(B3X1, Y1, B3X2, Y2, RGB(255,255,255), B3_FILL_COLOR);
+    TEXTOUT_P("HEAL", (B3X1+B3X2)/2-10, Y1+4, 1, TEXT_COLOR);
+
+    // debug prints
+    IF DEBUG == 1 THEN
+        TEXTOUT_P("WAIT_TIME_MS: " + WAIT_TIME_MS + "ms", 10, 10, 1, TEXT_COLOR);
+        TEXTOUT_P("HAPPYNESS: " + HAPPYNESS, 10, 20, 1, TEXT_COLOR);
+        TEXTOUT_P("HEALTH: " + HEALTH, 10, 30, 1, TEXT_COLOR);
+        TEXTOUT_P("HUNGER: " + HUNGER, 10, 40, 1, TEXT_COLOR);
+        TEXTOUT_P("ACTION: " + CURRENT_ACTION, 10, 50, 1, TEXT_COLOR);
+        TEXTOUT_P("KEY: " + PRESSED_KEY, 10, 60, 1, TEXT_COLOR);
+        TEXTOUT_P("MX: " + MX + " - " + "MY: " + MY, 10, 70, 1, TEXT_COLOR);
+        TEXTOUT_P("VX: " + V_X + " - " + "VY: " + V_Y, 10, 80, 1, TEXT_COLOR);
+    END;
+    
+    // Show current hit if playing with Pet
+    IF CURRENT_ACTION == 1 THEN
+        IF MX > 0 AND MY > 0 THEN ARC_P(MX, MY, 20, {RGB(255,255,255), RGB(0,0,255)}); END;
+    END;
+
+    // draw pet
+    ARC_P(P_X,P_Y,PET_RADIUS,{PET_BORDER_COLOR, PET_BODY_COLOR});
+
+    // draw eyes
+    LINE_P(P_X + P_OR*V_X + E_OFF_X, P_Y + P_OR*V_Y + E_OFF_Y, P_X + P_OR*V_X + E_OFF_X, P_Y + P_OR*V_Y - E_DY, E_COLOR);
+    LINE_P(P_X + P_OR*V_X - E_OFF_X, P_Y + P_OR*V_Y + E_OFF_Y, P_X + P_OR*V_X - E_OFF_X, P_Y + P_OR*V_Y - E_DY, E_COLOR);
+
+    // draw nose
+    LINE_P(P_X + P_OR*V_X, P_Y + E_OFF_Y + P_OR*V_Y, P_X + P_OR*V_X, P_Y + N_OFF_Y + P_OR*V_Y + N_DY, N_COLOR);
+END;
+
+END;
